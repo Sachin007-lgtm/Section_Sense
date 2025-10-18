@@ -1,0 +1,62 @@
+# Environment Variables
+.env
+.env.local
+.env.*.local
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual Environments
+venv/
+mvenv/
+ENV/
+env/
+.venv
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-error.log*
+dist/
+dist-ssr/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+criminal_law_kb.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# ML Models Cache
+.cache/
+sentence_transformers_cache/
+
+# Build outputs
+Backend/dist/
+Frontend/dist/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
