@@ -4,6 +4,7 @@ services:
   # Backend API (FastAPI)
   - type: web
     name: criminal-law-api
+    env: python
     runtime: python
     plan: free
     region: singapore
