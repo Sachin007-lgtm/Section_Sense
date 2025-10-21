@@ -116,6 +116,30 @@ curl "http://localhost:8000/api/v1/health"
 # http://localhost:8000/docs
 ```
 
+## ☁️ Supabase (PostgreSQL) setup
+
+If you're using Supabase for production, you can create the required tables in two ways:
+
+1) Run the idempotent Python helper (recommended)
+
+```powershell
+# From the project root (Windows PowerShell)
+cd "C:\Users\sachi\Desktop\Sem 5 Evaluation\BDA lab"
+# Ensure env has DATABASE_URL or edit Backend/.env to include your Supabase URL
+python .\Backend\create_supabase_tables.py
+```
+
+2) Or run the SQL directly in Supabase SQL editor
+
+ - Open your Supabase project → SQL Editor → New query
+ - Paste the contents of `Backend/sql/create_contact_table.sql` and run
+
+Notes:
+- The script uses the same SQLAlchemy models as the app and will call `create_all()` which is idempotent.
+- The SQL file is provided as a fallback if you prefer to run SQL directly in Supabase.
+- Make sure `DATABASE_URL` in `Backend/.env` points to your Supabase connection string and that the password is correct.
+
+
 ## 🔍 API Usage Examples
 
 ### **Search for Legal Sections**

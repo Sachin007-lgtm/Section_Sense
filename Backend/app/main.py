@@ -13,12 +13,15 @@ load_dotenv()
 
 from app.database import get_db, engine
 from app.models.law_models import Base
+from app.models.contact_models import ContactMessage
 from app.schemas import (
     SearchRequest, SearchResult, CaseUploadRequest, QARequest, QAResponse,
     SearchType, UserType, SystemHealth, SearchAnalytics, ExplanationRequest, ExplanationResponse
 )
+from app.schemas.contact_schemas import ContactMessageCreate, ContactMessageResponse, ContactMessageStatus
 from app.services.universal_search_service import UniversalSearchService
 from app.services.explanation_service import LegalExplanationService
+from app.services.contact_service import ContactService
 from app.services import chatbot_service
 
 # Configure logging
@@ -45,6 +48,8 @@ app.add_middleware(
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
+# Ensure contact_messages table is created
+ContactMessage.metadata.create_all(bind=engine)
 
 # Include routers
 app.include_router(chatbot_service.router, tags=["Chatbot"])
@@ -74,7 +79,8 @@ async def root():
             "cases": "/api/v1/cases",
             "sections": "/api/v1/sections",
             "analytics": "/api/v1/analytics",
-            "health": "/api/v1/health"
+            "health": "/api/v1/health",
+            "contact": "/api/v1/contact"
         }
     }
 
@@ -473,6 +479,167 @@ async def get_search_suggestions(
     except Exception as e:
         logger.error(f"Suggestions failed: {e}")
         raise HTTPException(status_code=500, detail=f"Suggestions failed: {str(e)}")
+
+
+# ============================================
+# CONTACT FORM ENDPOINTS
+# ============================================
+
+@app.post("/api/v1/contact", response_model=ContactMessageResponse, tags=["Contact"])
+async def submit_contact_form(
+    message_data: ContactMessageCreate,
+    db: Session = Depends(get_db)
+):
+    """Submit a contact form message"""
+    try:
+        contact_service = ContactService(db)
+        message = contact_service.create_message(message_data)
+        
+        return ContactMessageResponse(
+            id=message.id,
+            name=message.name,
+            email=message.email,
+            subject=message.subject,
+            message=message.message,
+            phone=message.phone,
+            is_read=message.is_read,
+            created_at=message.created_at
+        )
+        
+    except Exception as e:
+        logger.error(f"Contact form submission failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to submit contact form: {str(e)}")
+
+
+@app.get("/api/v1/contact/messages", response_model=List[ContactMessageResponse], tags=["Contact"])
+async def get_contact_messages(
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=500, description="Maximum number of records"),
+    db: Session = Depends(get_db)
+):
+    """Get all contact messages (admin endpoint)"""
+    try:
+        contact_service = ContactService(db)
+        messages = contact_service.get_all_messages(skip=skip, limit=limit)
+        
+        return [
+            ContactMessageResponse(
+                id=msg.id,
+                name=msg.name,
+                email=msg.email,
+                subject=msg.subject,
+                message=msg.message,
+                phone=msg.phone,
+                is_read=msg.is_read,
+                created_at=msg.created_at
+            )
+            for msg in messages
+        ]
+        
+    except Exception as e:
+        logger.error(f"Failed to retrieve contact messages: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve messages: {str(e)}")
+
+
+@app.get("/api/v1/contact/messages/{message_id}", response_model=ContactMessageResponse, tags=["Contact"])
+async def get_contact_message(
+    message_id: int,
+    db: Session = Depends(get_db)
+):
+    """Get a specific contact message by ID"""
+    try:
+        contact_service = ContactService(db)
+        message = contact_service.get_message_by_id(message_id)
+        
+        if not message:
+            raise HTTPException(status_code=404, detail="Message not found")
+        
+        return ContactMessageResponse(
+            id=message.id,
+            name=message.name,
+            email=message.email,
+            subject=message.subject,
+            message=message.message,
+            phone=message.phone,
+            is_read=message.is_read,
+            created_at=message.created_at
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to retrieve contact message: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve message: {str(e)}")
+
+
+@app.patch("/api/v1/contact/messages/{message_id}/read", response_model=ContactMessageResponse, tags=["Contact"])
+async def mark_message_as_read(
+    message_id: int,
+    db: Session = Depends(get_db)
+):
+    """Mark a contact message as read"""
+    try:
+        contact_service = ContactService(db)
+        message = contact_service.mark_as_read(message_id)
+        
+        if not message:
+            raise HTTPException(status_code=404, detail="Message not found")
+        
+        return ContactMessageResponse(
+            id=message.id,
+            name=message.name,
+            email=message.email,
+            subject=message.subject,
+            message=message.message,
+            phone=message.phone,
+            is_read=message.is_read,
+            created_at=message.created_at
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to mark message as read: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update message: {str(e)}")
+
+
+@app.delete("/api/v1/contact/messages/{message_id}", tags=["Contact"])
+async def delete_contact_message(
+    message_id: int,
+    db: Session = Depends(get_db)
+):
+    """Delete a contact message"""
+    try:
+        contact_service = ContactService(db)
+        deleted = contact_service.delete_message(message_id)
+        
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Message not found")
+        
+        return {"message": "Contact message deleted successfully", "id": message_id}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete contact message: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete message: {str(e)}")
+
+
+@app.get("/api/v1/contact/unread-count", tags=["Contact"])
+async def get_unread_count(
+    db: Session = Depends(get_db)
+):
+    """Get count of unread contact messages"""
+    try:
+        contact_service = ContactService(db)
+        count = contact_service.get_unread_count()
+        
+        return {"unread_count": count}
+        
+    except Exception as e:
+        logger.error(f"Failed to get unread count: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get unread count: {str(e)}")
+
 
 # Background task functions
 def log_case_upload(request: CaseUploadRequest):

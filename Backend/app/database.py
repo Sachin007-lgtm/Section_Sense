@@ -52,6 +52,7 @@ def init_db():
     try:
         # Import all models to ensure they are registered
         from app.models.law_models import Base
+        from app.models.contact_models import ContactMessage
         
         # Create all tables
         Base.metadata.create_all(bind=engine)
