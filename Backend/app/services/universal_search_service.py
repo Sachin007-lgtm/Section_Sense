@@ -21,14 +21,8 @@ if IS_POSTGRES:
 else:
     import sqlite3
 
-# Try to import ML libraries (optional for semantic search)
-try:
-    from sentence_transformers import SentenceTransformer
-    from sklearn.metrics.pairwise import cosine_similarity
-    import numpy as np
-    ML_AVAILABLE = True
-except ImportError:
-    ML_AVAILABLE = False
+# Import HuggingFace-based search service
+from app.services.hf_search_service import HuggingFaceSearchService
 
 logger = logging.getLogger(__name__)
 
@@ -44,26 +38,10 @@ class UniversalSearchService:
         """
         self.database_url = db_path_or_url or DATABASE_URL
         self.is_postgres = self.database_url.startswith("postgresql")
-        self.model = None
-        self._load_nlp_model()
-        
-        if not ML_AVAILABLE:
-            logger.warning("ML libraries not available - semantic search disabled")
+        self.hf_service = HuggingFaceSearchService()
         
         logger.info(f"Initialized search service with {'PostgreSQL' if self.is_postgres else 'SQLite'}")
-    
-    def _load_nlp_model(self):
-        """Load the NLP model for semantic search"""
-        if not ML_AVAILABLE:
-            self.model = None
-            return
-            
-        try:
-            self.model = SentenceTransformer('all-MiniLM-L6-v2')
-            logger.info("NLP model loaded successfully for semantic search")
-        except Exception as e:
-            logger.error(f"Failed to load NLP model: {e}")
-            self.model = None
+        logger.info("Using Hugging Face API for semantic search")
     
     def _get_connection(self):
         """Get database connection based on database type"""
@@ -175,12 +153,9 @@ class UniversalSearchService:
             
             conn.close()
             
-            # Apply semantic ranking if available and we have results
-            if sections and self.model and ML_AVAILABLE:
-                sections = self._rank_by_relevance(sections, query)
-            elif sections:
-                # Fallback to keyword-based ranking
-                sections = self._keyword_rank(sections, query)
+            # Apply semantic ranking using HuggingFace API
+            if sections:
+                sections = self.hf_service.rank_by_semantic_similarity(sections, query)
             
             # Limit results
             sections = sections[:max_results]
@@ -246,41 +221,7 @@ class UniversalSearchService:
         
         return ranked_sections
     
-    def _rank_by_relevance(self, sections: List[Dict[str, Any]], query: str) -> List[Dict[str, Any]]:
-        """Rank sections by semantic similarity using ML model"""
-        try:
-            # Generate query embedding
-            query_embedding = self.model.encode([query])
-            
-            # Generate section embeddings
-            section_texts = []
-            for section in sections:
-                text = f"{section.get('title', '')} {section.get('description', '')[:500]}"
-                section_texts.append(text)
-            
-            section_embeddings = self.model.encode(section_texts)
-            
-            # Calculate cosine similarities
-            similarities = cosine_similarity(query_embedding, section_embeddings)[0]
-            
-            # Add similarity scores to sections
-            for idx, section in enumerate(sections):
-                section['similarity_score'] = float(similarities[idx])
-                section['relevance_score'] = float(similarities[idx])
-            
-            # Sort by similarity descending
-            ranked_sections = sorted(sections, key=lambda x: x.get('similarity_score', 0), reverse=True)
-            
-            # Log top results
-            logger.info(f"Top 5 semantically ranked results:")
-            for section in ranked_sections[:5]:
-                logger.info(f"  {section.get('section_code')}: {section.get('title')[:50]}... (score: {section.get('similarity_score', 0):.3f})")
-            
-            return ranked_sections
-            
-        except Exception as e:
-            logger.error(f"Semantic ranking failed: {e}")
-            return self._keyword_rank(sections, query)
+
     
     def get_section_by_code(self, section_code: str) -> Optional[Dict[str, Any]]:
         """Get a specific section by its code"""
