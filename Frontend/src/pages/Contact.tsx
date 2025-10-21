@@ -14,11 +14,12 @@ const Contact = () => {
     email: '',
     message: '',
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Mock form submission
+    // Client-side validation
     if (!formData.name || !formData.email || !formData.message) {
       toast({
         title: 'Please fill in all fields',
@@ -27,12 +28,61 @@ const Contact = () => {
       return;
     }
 
-    toast({
-      title: 'Message sent successfully!',
-      description: 'Thank you for contacting us. We will get back to you soon.',
-    });
+    if (formData.name.length < 2) {
+      toast({
+        title: 'Name must be at least 2 characters',
+        variant: 'destructive',
+      });
+      return;
+    }
 
-    setFormData({ name: '', email: '', message: '' });
+    if (formData.message.length < 10) {
+      toast({
+        title: 'Message must be at least 10 characters',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // Get API URL from environment or default to localhost
+      const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+      
+      const response = await fetch(`${apiUrl}/api/v1/contact`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          message: formData.message,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Failed to send message');
+      }
+
+      toast({
+        title: 'Message sent successfully!',
+        description: 'Thank you for contacting us. We will get back to you soon.',
+      });
+
+      setFormData({ name: '', email: '', message: '' });
+    } catch (error) {
+      console.error('Error submitting contact form:', error);
+      toast({
+        title: 'Failed to send message',
+        description: error instanceof Error ? error.message : 'Please try again later.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -118,8 +168,9 @@ const Contact = () => {
                 <Button 
                   type="submit" 
                   className="w-full bg-gradient-legal hover:opacity-90 transition-opacity"
+                  disabled={isSubmitting}
                 >
-                  Send Message
+                  {isSubmitting ? 'Sending...' : 'Send Message'}
                 </Button>
               </form>
             </CardContent>
