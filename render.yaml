@@ -8,8 +8,8 @@ services:
     runtime: python
     plan: free
     region: singapore
-    buildCommand: "pip install --upgrade pip setuptools wheel && pip install -r Backend/requirements.txt && chmod +x Backend/build.sh && ./Backend/build.sh"
-    startCommand: "cd Backend && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-10000}"
+    buildCommand: "pip install --upgrade pip setuptools wheel && pip install -r Backend/requirements.txt && chmod +x Backend/build.sh && ./Backend/build.sh && chmod +x start.sh"
+    startCommand: "./start.sh"
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
