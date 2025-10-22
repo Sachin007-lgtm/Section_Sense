@@ -46,7 +46,7 @@ const Index = () => {
             <Sparkles className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium text-primary">AI-Powered Legal Search</span>
           </div>
-          <h1 className="text-5xl font-bold text-foreground mb-4 bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
+          <h1 className="text-5xl font-bold mb-4 leading-tight pb-2 bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
             Legal Section Search
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">

@@ -50,6 +50,9 @@ const Contact = () => {
       // Get API URL from environment or default to localhost
       const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
       
+      console.log('Submitting to:', `${apiUrl}/api/v1/contact`);
+      console.log('Form data:', formData);
+      
       const response = await fetch(`${apiUrl}/api/v1/contact`, {
         method: 'POST',
         headers: {
@@ -62,10 +65,16 @@ const Contact = () => {
         }),
       });
 
+      console.log('Response status:', response.status);
+      
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.error('Error response:', errorData);
         throw new Error(errorData.detail || 'Failed to send message');
       }
+
+      const responseData = await response.json();
+      console.log('Success response:', responseData);
 
       toast({
         title: 'Message sent successfully!',
@@ -167,7 +176,8 @@ const Contact = () => {
 
                 <Button 
                   type="submit" 
-                  className="w-full bg-gradient-legal hover:opacity-90 transition-opacity"
+                  className="w-full hover:opacity-90 transition-opacity text-white"
+                  style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)))' }}
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? 'Sending...' : 'Send Message'}
