@@ -1,5 +1,8 @@
 """
 Schemas package for Pydantic models
+
+This package consolidates all Pydantic schema definitions.
+Main schemas are in main_schemas.py, contact schemas in contact_schemas.py.
 """
 
 # Re-export main schemas so "from app.schemas import X" works
