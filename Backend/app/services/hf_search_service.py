@@ -17,7 +17,8 @@ class HuggingFaceSearchService:
     
     def __init__(self):
         self.hf_api_key = os.getenv("HUGGINGFACE_API_KEY")
-        self.api_url = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
+        # Updated to new HF Inference API endpoint
+        self.api_url = "https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2"
         self.headers = {"Authorization": f"Bearer {self.hf_api_key}"} if self.hf_api_key else {}
         
         if not self.hf_api_key:
