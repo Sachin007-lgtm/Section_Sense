@@ -63,10 +63,74 @@ class UniversalSearchService:
         """Get case-insensitive LIKE operator"""
         return "ILIKE" if self.is_postgres else "LIKE"
     
+    def _expand_query(self, query: str) -> str:
+        """Expand query with legal synonyms and related terms"""
+        query_lower = query.lower()
+        
+        # Legal terminology synonyms
+        expansions = {
+            # Domestic/Family violence
+            'domestic violence': 'domestic violence cruelty wife husband woman',
+            'domestic abuse': 'domestic violence cruelty wife husband woman',
+            'wife beating': 'cruelty domestic violence husband woman',
+            'marital violence': 'cruelty domestic violence husband wife',
+            'dowry': 'dowry cruelty harassment woman',
+            
+            # Sexual offenses
+            'rape': 'rape sexual assault intercourse',
+            'sexual assault': 'sexual assault rape intercourse',
+            'sexual harassment': 'sexual harassment assault',
+            'molestation': 'molestation sexual assault',
+            
+            # Cyber/Technology crimes
+            'cybercrime': 'cybercrime electronic computer digital online document record',
+            'cyber crime': 'cybercrime electronic computer digital online document record',
+            'hacking': 'hacking electronic computer unauthorized access',
+            'online fraud': 'fraud electronic computer cheating online',
+            'digital fraud': 'fraud electronic computer cheating digital',
+            'phishing': 'phishing fraud cheating electronic',
+            'identity theft': 'identity theft fraud cheating forgery electronic',
+            'data theft': 'theft electronic computer document record',
+            'computer crime': 'computer electronic digital document record',
+            
+            # Property crimes
+            'kidnapping': 'kidnapping abduction',
+            'abduction': 'abduction kidnapping',
+            'murder': 'murder culpable homicide death killing',
+            'theft': 'theft stealing robbery extortion',
+            'robbery': 'robbery theft dacoity extortion',
+            'burglary': 'burglary theft house breaking',
+            'extortion': 'extortion robbery threat',
+            
+            # Financial crimes
+            'fraud': 'fraud cheating forgery deception',
+            'cheating': 'cheating fraud deception forgery',
+            'forgery': 'forgery fraud cheating document',
+            'embezzlement': 'embezzlement theft cheating fraud',
+            'bribery': 'bribery corruption gratification',
+            'corruption': 'corruption bribery gratification',
+            
+            # Other crimes
+            'assault': 'assault hurt injury violence',
+            'defamation': 'defamation reputation harm',
+            'harassment': 'harassment intimidation threat',
+        }
+        
+        # Check if query matches any expansion patterns
+        for key, expanded in expansions.items():
+            if key in query_lower:
+                logger.info(f"Query expansion: '{query}' → '{expanded}'")
+                return expanded
+        
+        return query
+    
     def search_sections(self, query: str, filters: Optional[Dict[str, Any]] = None, 
                        max_results: int = 10) -> List[Dict[str, Any]]:
         """Search for law sections with semantic ranking"""
         try:
+            # Expand query with legal synonyms
+            expanded_query = self._expand_query(query)
+            
             conn = self._get_connection()
             cursor = conn.cursor()
             
@@ -88,9 +152,9 @@ class UniversalSearchService:
                          'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'has', 'have', 
                          'that', 'this', 'by', 'from', 'as', 'it', 'its'}
             
-            # Add search conditions
-            if query.strip():
-                search_terms = [term for term in query.strip().lower().split() 
+            # Add search conditions - use expanded query for DB search
+            if expanded_query.strip():
+                search_terms = [term for term in expanded_query.strip().lower().split() 
                               if term not in stop_words and len(term) > 2]
                 
                 if not search_terms:

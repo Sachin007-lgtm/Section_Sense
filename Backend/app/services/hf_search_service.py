@@ -1,10 +1,9 @@
 """
 Hugging Face API-based Search Service - Lightweight alternative to local models
-Uses Hugging Face Inference API for embeddings instead of local sentence-transformers
+Uses Hugging Face InferenceClient for embeddings instead of local sentence-transformers
 """
 import logging
 import os
-import requests
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 
@@ -17,37 +16,79 @@ class HuggingFaceSearchService:
     
     def __init__(self):
         self.hf_api_key = os.getenv("HUGGINGFACE_API_KEY")
-        # Updated to new HF Inference API endpoint
-        self.api_url = "https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2"
-        self.headers = {"Authorization": f"Bearer {self.hf_api_key}"} if self.hf_api_key else {}
+        self.model_id = "BAAI/bge-small-en-v1.5"
+        self.client = None
         
         if not self.hf_api_key:
             logger.warning("HUGGINGFACE_API_KEY not set - will use keyword-based search only")
         else:
-            logger.info("Initialized search with Hugging Face API")
+            try:
+                from huggingface_hub import InferenceClient
+                self.client = InferenceClient(token=self.hf_api_key)
+                logger.info(f"Initialized search with Hugging Face API using model: {self.model_id}")
+            except ImportError:
+                logger.error("huggingface-hub not installed. Run: pip install huggingface-hub")
+                self.client = None
+            except Exception as e:
+                logger.error(f"Failed to initialize HF InferenceClient: {e}")
+                self.client = None
     
     def get_embedding(self, text: str) -> Optional[List[float]]:
-        """Get embedding from Hugging Face API"""
-        if not self.hf_api_key:
+        """Get embedding from Hugging Face using InferenceClient"""
+        if not self.client:
             return None
         
-        try:
-            response = requests.post(
-                self.api_url,
-                headers=self.headers,
-                json={"inputs": text, "options": {"wait_for_model": True}},
-                timeout=10
-            )
-            
-            if response.status_code == 200:
-                return response.json()
-            else:
-                logger.error(f"HF API error: {response.status_code} - {response.text}")
-                return None
+        import time
+        
+        retries = 2
+        backoff = 1.0
+
+        for attempt in range(retries + 1):
+            try:
+                # Use feature_extraction method from InferenceClient
+                # This handles the new router endpoint automatically
+                result = self.client.feature_extraction(
+                    text=text,
+                    model=self.model_id
+                )
                 
-        except Exception as e:
-            logger.error(f"Failed to get embedding from HF API: {e}")
-            return None
+                # Result can be a list or numpy array
+                if hasattr(result, 'tolist'):
+                    # Convert numpy array to list
+                    return result.tolist()
+                elif isinstance(result, list):
+                    return result
+                else:
+                    logger.error(f"Unexpected embedding result type: {type(result)}")
+                    return None
+
+            except Exception as e:
+                error_msg = str(e).lower()
+                
+                # Model loading - wait and retry
+                if "loading" in error_msg or "503" in error_msg:
+                    logger.info(f"Model loading, waiting... (attempt {attempt + 1}/{retries + 1})")
+                    if attempt < retries:
+                        time.sleep(backoff)
+                        backoff *= 2
+                        continue
+                
+                # Rate limit - wait and retry
+                if "rate limit" in error_msg or "429" in error_msg:
+                    logger.warning(f"Rate limited, waiting... (attempt {attempt + 1}/{retries + 1})")
+                    if attempt < retries:
+                        time.sleep(backoff)
+                        backoff *= 2
+                        continue
+                
+                # Log other errors
+                logger.error(f"HF API error (attempt {attempt + 1}): {e}")
+                if attempt < retries:
+                    time.sleep(backoff)
+                    backoff *= 2
+
+        logger.error("Exceeded retries while calling HF API for embeddings")
+        return None
     
     def cosine_similarity(self, vec1: List[float], vec2: List[float]) -> float:
         """Calculate cosine similarity between two vectors"""
