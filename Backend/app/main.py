@@ -84,6 +84,12 @@ async def root():
         }
     }
 
+@app.get("/health", tags=["System"])
+async def uptime_health_check():
+    """Lightweight health check endpoint for uptime monitoring services"""
+    logger.info("🩺 Health check ping received from UptimeRobot")
+    return {"status": "ok"}
+
 @app.get("/api/v1/health", response_model=SystemHealth, tags=["System"])
 async def health_check():
     """Check system health and status"""
