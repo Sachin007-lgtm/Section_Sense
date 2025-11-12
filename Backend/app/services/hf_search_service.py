@@ -5,11 +5,30 @@ Uses Hugging Face InferenceClient for embeddings instead of local sentence-trans
 import logging
 import os
 from typing import List, Dict, Any, Optional
+from functools import lru_cache
 from dotenv import load_dotenv
 
 load_dotenv()
 
 logger = logging.getLogger(__name__)
+
+# Singleton pattern for InferenceClient to avoid re-initialization
+_client_instance = None
+
+@lru_cache(maxsize=1)
+def get_inference_client():
+    """Get or create a singleton InferenceClient instance"""
+    global _client_instance
+    if _client_instance is None:
+        hf_api_key = os.getenv("HUGGINGFACE_API_KEY")
+        if hf_api_key:
+            try:
+                from huggingface_hub import InferenceClient
+                _client_instance = InferenceClient(token=hf_api_key)
+                logger.info("Created singleton InferenceClient instance")
+            except Exception as e:
+                logger.error(f"Failed to create InferenceClient: {e}")
+    return _client_instance
 
 class HuggingFaceSearchService:
     """Search service using Hugging Face Inference API for embeddings"""
@@ -17,15 +36,16 @@ class HuggingFaceSearchService:
     def __init__(self):
         self.hf_api_key = os.getenv("HUGGINGFACE_API_KEY")
         self.model_id = "BAAI/bge-small-en-v1.5"
-        self.client = None
+        self.embedding_cache = {}  # Cache embeddings to reduce API calls
         
         if not self.hf_api_key:
             logger.warning("HUGGINGFACE_API_KEY not set - will use keyword-based search only")
+            self.client = None
         else:
             try:
-                from huggingface_hub import InferenceClient
-                self.client = InferenceClient(token=self.hf_api_key)
-                logger.info(f"Initialized search with Hugging Face API using model: {self.model_id}")
+                self.client = get_inference_client()
+                if self.client:
+                    logger.info(f"Initialized search with Hugging Face API using model: {self.model_id}")
             except ImportError:
                 logger.error("huggingface-hub not installed. Run: pip install huggingface-hub")
                 self.client = None
@@ -34,14 +54,19 @@ class HuggingFaceSearchService:
                 self.client = None
     
     def get_embedding(self, text: str) -> Optional[List[float]]:
-        """Get embedding from Hugging Face using InferenceClient"""
+        """Get embedding from Hugging Face using InferenceClient with caching"""
         if not self.client:
             return None
+        
+        # Check cache first (avoid redundant API calls)
+        cache_key = text[:200]  # Use first 200 chars as key
+        if cache_key in self.embedding_cache:
+            return self.embedding_cache[cache_key]
         
         import time
         
         retries = 2
-        backoff = 1.0
+        backoff = 2.0  # Increased initial backoff for model loading
 
         for attempt in range(retries + 1):
             try:
@@ -53,32 +78,45 @@ class HuggingFaceSearchService:
                 )
                 
                 # Result can be a list or numpy array
+                embedding = None
                 if hasattr(result, 'tolist'):
                     # Convert numpy array to list
-                    return result.tolist()
+                    embedding = result.tolist()
                 elif isinstance(result, list):
-                    return result
+                    embedding = result
                 else:
                     logger.error(f"Unexpected embedding result type: {type(result)}")
                     return None
+                
+                # Cache the result
+                self.embedding_cache[cache_key] = embedding
+                
+                # Limit cache size to prevent memory issues
+                if len(self.embedding_cache) > 1000:
+                    # Remove oldest entries (simple FIFO)
+                    oldest_keys = list(self.embedding_cache.keys())[:100]
+                    for key in oldest_keys:
+                        del self.embedding_cache[key]
+                
+                return embedding
 
             except Exception as e:
                 error_msg = str(e).lower()
                 
-                # Model loading - wait and retry
+                # Model loading - wait longer with exponential backoff
                 if "loading" in error_msg or "503" in error_msg:
-                    logger.info(f"Model loading, waiting... (attempt {attempt + 1}/{retries + 1})")
+                    wait_time = backoff * (2 ** attempt)  # Exponential: 2s, 4s, 8s
+                    logger.info(f"Model loading, waiting {wait_time}s... (attempt {attempt + 1}/{retries + 1})")
                     if attempt < retries:
-                        time.sleep(backoff)
-                        backoff *= 2
+                        time.sleep(wait_time)
                         continue
                 
                 # Rate limit - wait and retry
                 if "rate limit" in error_msg or "429" in error_msg:
-                    logger.warning(f"Rate limited, waiting... (attempt {attempt + 1}/{retries + 1})")
+                    wait_time = backoff * (2 ** attempt)
+                    logger.warning(f"Rate limited, waiting {wait_time}s... (attempt {attempt + 1}/{retries + 1})")
                     if attempt < retries:
-                        time.sleep(backoff)
-                        backoff *= 2
+                        time.sleep(wait_time)
                         continue
                 
                 # Log other errors
