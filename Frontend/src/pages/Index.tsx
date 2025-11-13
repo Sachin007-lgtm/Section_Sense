@@ -91,107 +91,160 @@ const Index = () => {
           </Card>
         </div>
 
-        {/* Search Card */}
-        <Card className="shadow-2xl border-2 border-primary/20 mb-8 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-primary/5 pointer-events-none" />
-          <CardContent className="p-8 relative">
-            <Tabs value={searchMode} onValueChange={(value) => setSearchMode(value)}>
-              <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-8 h-12">
-                <TabsTrigger value="simple" className="text-base">
-                  <Search className="h-4 w-4 mr-2" />
-                  Simple Search
-                </TabsTrigger>
-                <TabsTrigger value="advanced" className="text-base">
-                  <Filter className="h-4 w-4 mr-2" />
-                  Advanced Search
-                </TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="simple" className="space-y-4">
-                <div className="relative">
-                  <Textarea 
-                    placeholder="Describe your case or legal scenario... (e.g., 'What are the provisions for theft of property worth more than 5 lakhs?')"
-                    value={query} 
-                    onChange={(e) => setQuery(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' && e.ctrlKey) { handleSearch(); } }}
-                    rows={5} 
-                    className="resize-none text-base border-2 focus:border-primary transition-colors" 
-                  />
-                  <div className="absolute bottom-3 right-3 text-xs text-muted-foreground">
-                    Press Ctrl+Enter to search
+        {/* Modern Search Section */}
+        <div className="relative mb-8">
+          {/* Background Decorations */}
+          <div className="absolute -top-32 -left-32 w-96 h-96 bg-primary/10 rounded-full blur-3xl opacity-50 pointer-events-none" />
+          <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl opacity-50 pointer-events-none" />
+          
+          <Card className="relative shadow-2xl border-2 border-primary/30 backdrop-blur-sm bg-card/95 overflow-hidden">
+            {/* Animated gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-blue-500/5 to-primary/5 animate-pulse pointer-events-none" />
+            
+            <CardContent className="p-8 lg:p-12 relative">
+              {/* Search Mode Tabs */}
+              <div className="flex justify-center mb-10">
+                <div className="inline-flex items-center gap-2 p-1.5 bg-muted/50 backdrop-blur-sm rounded-full border border-border/50">
+                  <Button 
+                    variant={searchMode === 'simple' ? 'default' : 'ghost'}
+                    size="lg"
+                    onClick={() => setSearchMode('simple')}
+                    className={`rounded-full px-8 transition-all ${searchMode === 'simple' ? 'shadow-lg' : ''}`}
+                  >
+                    <Search className="h-4 w-4 mr-2" />
+                    Natural Language
+                  </Button>
+                  <Button 
+                    variant={searchMode === 'advanced' ? 'default' : 'ghost'}
+                    size="lg"
+                    onClick={() => setSearchMode('advanced')}
+                    className={`rounded-full px-8 transition-all ${searchMode === 'advanced' ? 'shadow-lg' : ''}`}
+                  >
+                    <Filter className="h-4 w-4 mr-2" />
+                    Precise Search
+                  </Button>
+                </div>
+              </div>
+
+              {/* Simple Search Mode */}
+              {searchMode === 'simple' && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                  <div className="relative group">
+                    <div className="absolute -inset-1 bg-gradient-to-r from-primary via-blue-500 to-primary rounded-2xl blur opacity-20 group-hover:opacity-30 transition duration-300" />
+                    <div className="relative">
+                      <Textarea 
+                        placeholder="Ask your legal question naturally... Try: 'What happens if someone steals property worth 10 lakhs?' or 'Tell me about bail provisions for non-bailable offenses'"
+                        value={query} 
+                        onChange={(e) => setQuery(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' && e.ctrlKey) { handleSearch(); } }}
+                        rows={6} 
+                        className="resize-none text-lg border-2 border-primary/20 focus:border-primary bg-background/95 backdrop-blur-sm shadow-inner rounded-2xl p-6 transition-all" 
+                      />
+                      <div className="absolute bottom-4 right-4 flex items-center gap-2">
+                        <Badge variant="secondary" className="text-xs">
+                          <Sparkles className="h-3 w-3 mr-1" />
+                          AI-Powered
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">Ctrl+Enter</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </TabsContent>
-              
-              <TabsContent value="advanced" className="space-y-6">
-                <div className="flex justify-center mb-6">
-                  <Tabs value={searchType} onValueChange={(value) => setSearchType(value)}>
-                    <TabsList className="grid w-fit grid-cols-2 h-11">
-                      <TabsTrigger value="semantic" className="text-sm">
-                        <Sparkles className="h-4 w-4 mr-2" />
+              )}
+
+              {/* Advanced Search Mode */}
+              {searchMode === 'advanced' && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                  {/* Search Type Toggle */}
+                  <div className="flex justify-center">
+                    <div className="inline-flex items-center gap-1 p-1 bg-muted/30 rounded-xl border border-border/50">
+                      <Button 
+                        variant={searchType === 'semantic' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => setSearchType('semantic')}
+                        className="rounded-lg px-4"
+                      >
+                        <Sparkles className="h-3.5 w-3.5 mr-1.5" />
                         Semantic
-                      </TabsTrigger>
-                      <TabsTrigger value="keyword" className="text-sm">
-                        <Filter className="h-4 w-4 mr-2" />
+                      </Button>
+                      <Button 
+                        variant={searchType === 'keyword' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => setSearchType('keyword')}
+                        className="rounded-lg px-4"
+                      >
+                        <Filter className="h-3.5 w-3.5 mr-1.5" />
                         Keyword
-                      </TabsTrigger>
-                    </TabsList>
-                  </Tabs>
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {/* Search Input */}
+                  <div className="relative group">
+                    <div className="absolute -inset-1 bg-gradient-to-r from-primary via-blue-500 to-primary rounded-2xl blur opacity-20 group-hover:opacity-30 transition duration-300" />
+                    <div className="relative flex items-center">
+                      <Search className="absolute left-5 h-5 w-5 text-muted-foreground pointer-events-none" />
+                      <Input 
+                        placeholder="BNS-302, Section 420, theft, murder..." 
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { handleSearch(); } }}
+                        className="pl-14 pr-6 h-16 text-lg border-2 border-primary/20 focus:border-primary bg-background/95 backdrop-blur-sm shadow-inner rounded-2xl transition-all" 
+                      />
+                    </div>
+                  </div>
                 </div>
-                <Input 
-                  placeholder="Enter specific legal terms or section numbers..." 
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { handleSearch(); } }}
-                  className="text-base h-12 border-2 focus:border-primary transition-colors" 
-                />
-              </TabsContent>
+              )}
               
-              <div className="flex justify-center mt-8">
+              {/* Search Button */}
+              <div className="flex justify-center mt-10">
                 <Button 
                   onClick={handleSearch} 
                   disabled={!query.trim() || isLoading}
                   size="lg" 
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground px-12 h-14 text-lg font-semibold shadow-lg hover:shadow-xl transition-all hover:scale-105"
+                  className="relative group bg-gradient-to-r from-primary via-primary to-blue-600 hover:from-primary/90 hover:via-primary/90 hover:to-blue-600/90 text-primary-foreground px-16 h-16 text-xl font-bold shadow-2xl hover:shadow-primary/50 transition-all duration-300 rounded-2xl overflow-hidden"
                 >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
                   {isLoading ? (
                     <>
-                      <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                      <Loader2 className="h-6 w-6 mr-3 animate-spin" />
                       Searching...
                     </>
                   ) : (
                     <>
-                      <Search className="h-5 w-5 mr-2" />
-                      Find Sections
+                      <Search className="h-6 w-6 mr-3" />
+                      Search Legal Database
                     </>
                   )}
                 </Button>
               </div>
-            </Tabs>
 
-            {/* Quick Search Section */}
-            <div className="mt-10 p-6 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 rounded-xl border border-primary/20">
-              <div className="flex items-center justify-center gap-2 mb-4">
-                <TrendingUp className="h-5 w-5 text-primary" />
-                <p className="text-base font-semibold text-foreground">Popular Searches</p>
+              {/* Quick Search Pills */}
+              <div className="mt-12 p-8 bg-gradient-to-br from-primary/5 via-blue-500/5 to-primary/5 rounded-2xl border border-primary/10 backdrop-blur-sm">
+                <div className="flex items-center justify-center gap-2 mb-5">
+                  <div className="p-2 bg-primary/10 rounded-full">
+                    <TrendingUp className="h-5 w-5 text-primary" />
+                  </div>
+                  <p className="text-lg font-bold text-foreground">Trending Searches</p>
+                </div>
+                <div className="flex flex-wrap justify-center gap-3">
+                  {quickSearchTerms.map((term) => (
+                    <Button 
+                      key={term} 
+                      variant="outline" 
+                      size="default"
+                      onClick={() => handleQuickSearch(term)} 
+                      disabled={isLoading}
+                      className="text-sm font-medium hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all hover:scale-105 shadow-md hover:shadow-lg rounded-full px-5 py-2"
+                    >
+                      {term}
+                    </Button>
+                  ))}
+                </div>
               </div>
-              <div className="flex flex-wrap justify-center gap-2">
-                {quickSearchTerms.map((term) => (
-                  <Button 
-                    key={term} 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => handleQuickSearch(term)} 
-                    disabled={isLoading}
-                    className="text-sm hover:bg-primary hover:text-primary-foreground transition-all hover:scale-105 shadow-sm"
-                  >
-                    {term}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
 
         {error && (
           <Alert variant="destructive" className="mb-6 shadow-lg border-2">
